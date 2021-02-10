@@ -6,11 +6,10 @@
 //
 
 import UIKit
-import CoreData
+
 
 class TaskListViewController: UITableViewController {
     
-    private let viewContext = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
     
     private let cellID = "cell"
     private var tasks: [Task] = []
@@ -55,19 +54,20 @@ class TaskListViewController: UITableViewController {
     }
 
     @objc private func addTask() {
-        showAlert(with: "New task", and: "What do you want to do?")
+        showAlert()
 //        let newTaskVC = NewTaskViewController()
 //        newTaskVC.modalPresentationStyle = .fullScreen
 //        present(newTaskVC, animated: true)
     }
     
-    //если добавлять таск через алерт
-    private func showAlert(with title: String, and message: String) {
+    private func showAlert(task: Task, copmletion: () -> Void) {
         let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
         
         let saveAction = UIAlertAction(title: "Save", style: .default) { _ in
             guard let task = alert.textFields?.first?.text, !task.isEmpty else { return }
-            self.save(task)
+            StorageManager.shared.save(task) { (<#Task#>) in
+                <#code#>
+            }
         }
         
         let cancelAction = UIAlertAction(title: "Cancel", style: .destructive)
@@ -80,7 +80,7 @@ class TaskListViewController: UITableViewController {
 
 }
 
-//MARK: - Table view data source
+// MARK: - Table view data source
 
 extension TaskListViewController {
     
@@ -94,35 +94,28 @@ extension TaskListViewController {
         cell.textLabel?.text = task.name
         return cell
     }
-    
 }
 
-// MARK: - Core Data
+// MARK: - Table view delegate
+
 extension TaskListViewController {
-    private func fetchData() {
-        let fetchRequest: NSFetchRequest<Task> = Task.fetchRequest()
-        do {
-        tasks = try viewContext.fetch(fetchRequest)
-        } catch let error {
-            print(error.localizedDescription)
+    
+    //edit task
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        let task = tasks[indexPath.row]
+        tableView.deselectRow(at: indexPath, animated: true)
+        showAlert(task: task) {
+            tableView.reloadRows(at: [indexPath], with: .automatic)
         }
     }
     
-    private func save(_ taskName: String) {
-        guard let entityDescription = NSEntityDescription.entity(forEntityName: "Task", in: viewContext) else { return }
+    override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
+        let task = tasks[indexPath.row]
         
-        guard let task = NSManagedObject(entity: entityDescription, insertInto: viewContext) as? Task else { return }
-        
-        task.name = taskName
-        tasks.append(task)
-        let indexPath = IndexPath(row: tasks.count - 1, section: 0)
-        tableView.insertRows(at: [indexPath], with: .automatic)
-        
-        do{
-            try viewContext.save()
-        } catch let error {
-            print(error.localizedDescription)
+        if editingStyle == .delete {
+            tasks.remove(at: indexPath.row)
+            tableView.deleteRows(at: [indexPath], with: .automatic)
+            StorageManager.shared.delete(task)
         }
-        
     }
 }
