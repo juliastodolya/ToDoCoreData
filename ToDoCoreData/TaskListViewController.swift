@@ -17,15 +17,16 @@ class TaskListViewController: UITableViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         setupNavigationBar()
+        tasks = StorageManager.shared.fetchData()
         
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: cellID)
     }
     
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(true)
-        fetchData()
-        tableView.reloadData()
-    }
+//    override func viewWillAppear(_ animated: Bool) {
+//        super.viewWillAppear(true)
+//        fetchData()
+//        tableView.reloadData()
+//    }
 
     private func setupNavigationBar() {
         title = "Task List"
@@ -60,24 +61,6 @@ class TaskListViewController: UITableViewController {
 //        present(newTaskVC, animated: true)
     }
     
-    private func showAlert(task: Task, copmletion: () -> Void) {
-        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
-        
-        let saveAction = UIAlertAction(title: "Save", style: .default) { _ in
-            guard let task = alert.textFields?.first?.text, !task.isEmpty else { return }
-            StorageManager.shared.save(task) { (<#Task#>) in
-                <#code#>
-            }
-        }
-        
-        let cancelAction = UIAlertAction(title: "Cancel", style: .destructive)
-        alert.addAction(saveAction)
-        alert.addAction(cancelAction)
-        alert.addTextField()
-        
-        present(alert, animated: true)
-    }
-
 }
 
 // MARK: - Table view data source
@@ -117,5 +100,35 @@ extension TaskListViewController {
             tableView.deleteRows(at: [indexPath], with: .automatic)
             StorageManager.shared.delete(task)
         }
+    }
+}
+
+// MARK: - Alert Controller
+
+extension TaskListViewController {
+    private func showAlert(task: Task? = nil, completion: (() -> Void)? = nil ) {
+        
+        var title = "New task"
+        if task !=  nil {
+            title = "Update task"
+        }
+        
+        let alert = AlertController(title: title, message: "What do you want to do?", preferredStyle: .alert)
+        
+        alert.action(task: task) { newValue in
+            if let task = task, let completion = completion {
+                StorageManager.shared.edit(task, newName: newValue)
+                completion()
+            } else {
+                StorageManager.shared.save(newValue) { task in
+                    self.tasks.append(task)
+                    self.tableView.insertRows(
+                        at: [IndexPath(row: self.tasks.count - 1, section: 0)],
+                        with: .automatic
+                    )
+                }
+            }
+        }
+        present(alert, animated: true)
     }
 }
